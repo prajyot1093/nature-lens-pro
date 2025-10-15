@@ -1,73 +1,35 @@
-# Welcome to your Lovable project
+# Tadoba Wildlife Surveillance
 
-## Project info
+Intelligent wildlife surveillance and conservation management platform for Tadoba Tiger Reserve.
 
-**URL**: https://lovable.dev/projects/638c1ecf-480b-45b2-a01e-1469604f5ff4
+## How to run locally
 
-## How can I edit this code?
+Requirements: Node.js and npm (or bun/pnpm). Then:
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/638c1ecf-480b-45b2-a01e-1469604f5ff4) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+```powershell
+# clone the repo
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# install
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# start dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Deploy
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+You can deploy this Vite app to Vercel or Netlify easily.
 
-**Use GitHub Codespaces**
+Vercel: import the repository in the Vercel dashboard and set the framework to `Vite`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Netlify: connect the repo and set the build command to `npm run build` and publish directory to `dist`.
 
-## What technologies are used for this project?
+## License & Attribution
 
-This project is built with:
+This repository was generated using tooling that added some default metadata. All Lovable-specific tooling and metadata have been removed. If you used any third-party packages, follow their licenses as stated in `package.json`.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Author
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/638c1ecf-480b-45b2-a01e-1469604f5ff4) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Prajyot
