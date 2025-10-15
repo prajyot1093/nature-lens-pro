@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cameras: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_live: boolean | null
+          location: string | null
+          name: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_live?: boolean | null
+          location?: string | null
+          name: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_live?: boolean | null
+          location?: string | null
+          name?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      detections: {
+        Row: {
+          camera_id: string | null
+          confidence: number
+          detected_at: string | null
+          id: string
+          image_url: string | null
+          location: string | null
+          species: string
+        }
+        Insert: {
+          camera_id?: string | null
+          confidence: number
+          detected_at?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          species: string
+        }
+        Update: {
+          camera_id?: string | null
+          confidence?: number
+          detected_at?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          species?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detections_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "cameras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,96 +1,110 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, MapPin, Clock, Download, Filter } from "lucide-react";
+import { Camera, MapPin, Clock, Download, Filter, Video } from "lucide-react";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { WebcamDetection } from "@/components/WebcamDetection";
+import { useToast } from "@/hooks/use-toast";
 
-const detections = [
-  {
-    id: 1,
-    species: "Bengal Tiger",
-    camera: "Camera 12",
-    zone: "Zone A",
-    lat: 20.1234,
-    lng: 79.3456,
-    confidence: 98,
-    timestamp: "2024-01-15 14:23:45",
-    status: "active",
-    image: "https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=400",
-  },
-  {
-    id: 2,
-    species: "Leopard",
-    camera: "Camera 7",
-    zone: "Zone C",
-    lat: 20.2345,
-    lng: 79.4567,
-    confidence: 95,
-    timestamp: "2024-01-15 14:15:30",
-    status: "moving",
-    image: "https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=400",
-  },
-  {
-    id: 3,
-    species: "Wild Elephant",
-    camera: "Camera 19",
-    zone: "Zone B",
-    lat: 20.3456,
-    lng: 79.5678,
-    confidence: 99,
-    timestamp: "2024-01-15 13:45:12",
-    status: "detected",
-    image: "https://images.unsplash.com/photo-1564760290292-23341e4df6ec?w=400",
-  },
-  {
-    id: 4,
-    species: "Sloth Bear",
-    camera: "Camera 5",
-    zone: "Zone A",
-    lat: 20.1567,
-    lng: 79.3789,
-    confidence: 92,
-    timestamp: "2024-01-15 13:20:08",
-    status: "detected",
-    image: "https://images.unsplash.com/photo-1589656966895-2f33e7653819?w=400",
-  },
-  {
-    id: 5,
-    species: "Wild Boar",
-    camera: "Camera 14",
-    zone: "Zone C",
-    lat: 20.2678,
-    lng: 79.4890,
-    confidence: 88,
-    timestamp: "2024-01-15 12:55:22",
-    status: "detected",
-    image: "https://images.unsplash.com/photo-1535083783855-76ae62b2914e?w=400",
-  },
-  {
-    id: 6,
-    species: "Spotted Deer",
-    camera: "Camera 3",
-    zone: "Zone B",
-    lat: 20.3789,
-    lng: 79.5901,
-    confidence: 94,
-    timestamp: "2024-01-15 12:30:45",
-    status: "detected",
-    image: "https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?w=400",
-  },
-];
+interface Camera {
+  id: string;
+  name: string;
+  location: string;
+  status: string;
+  is_live: boolean;
+}
+
+interface Detection {
+  id: string;
+  camera_id: string;
+  species: string;
+  confidence: number;
+  detected_at: string;
+  location: string;
+}
 
 export default function Surveillance() {
   const [selectedSpecies, setSelectedSpecies] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [cameras, setCameras] = useState<Camera[]>([]);
+  const [detections, setDetections] = useState<Detection[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
+  const { toast } = useToast();
+
+  // Fetch cameras
+  useEffect(() => {
+    const fetchCameras = async () => {
+      const { data, error } = await supabase
+        .from("cameras")
+        .select("*")
+        .eq("status", "active");
+
+      if (error) {
+        console.error("Error fetching cameras:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load cameras",
+          variant: "destructive",
+        });
+      } else {
+        setCameras(data || []);
+      }
+    };
+
+    fetchCameras();
+  }, []);
+
+  // Fetch detections and subscribe to real-time updates
+  useEffect(() => {
+    const fetchDetections = async () => {
+      const { data, error } = await supabase
+        .from("detections")
+        .select("*")
+        .order("detected_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("Error fetching detections:", error);
+      } else {
+        setDetections(data || []);
+      }
+    };
+
+    fetchDetections();
+
+    // Subscribe to real-time detection updates
+    const channel = supabase
+      .channel("detections")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "detections",
+        },
+        (payload) => {
+          setDetections((prev) => [payload.new as Detection, ...prev].slice(0, 50));
+          toast({
+            title: "New Detection",
+            description: `${(payload.new as Detection).species} detected!`,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filteredDetections = detections.filter((detection) => {
     const matchesSpecies = selectedSpecies === "all" || detection.species.toLowerCase().includes(selectedSpecies.toLowerCase());
     const matchesSearch = detection.species.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          detection.camera.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          detection.zone.toLowerCase().includes(searchQuery.toLowerCase());
+                          detection.location.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSpecies && matchesSearch;
   });
 
@@ -99,13 +113,57 @@ export default function Surveillance() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h1 className="text-4xl font-bold mb-2">AI Surveillance</h1>
-          <p className="text-foreground/70">Real-time wildlife detection feed powered by YOLOv8</p>
+          <p className="text-foreground/70">Real-time wildlife detection powered by YOLOv9</p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-0">
           <Button variant="outline" className="btn-glass gap-2">
             <Download className="h-4 w-4" />
             Export Data
           </Button>
+        </div>
+      </div>
+
+      {/* Live Camera Feed */}
+      {selectedCamera && (
+        <div className="mb-8">
+          <WebcamDetection
+            cameraId={selectedCamera.id}
+            cameraName={selectedCamera.name}
+            onClose={() => setSelectedCamera(null)}
+          />
+        </div>
+      )}
+
+      {/* Camera Selection */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Available Cameras</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {cameras.map((camera) => (
+            <motion.div
+              key={camera.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <GlassCard
+                hover
+                className="p-4 cursor-pointer"
+                onClick={() => setSelectedCamera(camera)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Video className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{camera.name}</h3>
+                    <p className="text-xs text-foreground/70">{camera.location}</p>
+                    <Badge className="mt-1 bg-green-500/90 border-0 text-xs">
+                      {camera.status}
+                    </Badge>
+                  </div>
+                </div>
+              </GlassCard>
+            </motion.div>
+          ))}
         </div>
       </div>
 
@@ -141,71 +199,51 @@ export default function Surveillance() {
         </div>
       </GlassCard>
 
-      {/* Detection Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDetections.map((detection, index) => (
-          <motion.div
-            key={detection.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <GlassCard hover className="overflow-hidden">
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={detection.image}
-                  alt={detection.species}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
-                />
-                <div className="absolute top-2 right-2">
-                  <Badge className="bg-primary/90 text-primary-foreground border-0">
-                    {detection.confidence}% confident
-                  </Badge>
-                </div>
-                <div className="absolute top-2 left-2">
-                  <Badge
-                    className={`border-0 ${
-                      detection.status === "active"
-                        ? "bg-green-500/90"
-                        : detection.status === "moving"
-                        ? "bg-yellow-500/90"
-                        : "bg-blue-500/90"
-                    }`}
-                  >
-                    {detection.status}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="p-4">
-                <h3 className="text-xl font-bold mb-2">{detection.species}</h3>
-                
-                <div className="space-y-2 text-sm text-foreground/70">
-                  <div className="flex items-center gap-2">
-                    <Camera className="h-4 w-4" />
-                    <span>{detection.camera} • {detection.zone}</span>
+      {/* Recent Detections */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Recent Detections</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredDetections.length === 0 ? (
+            <div className="col-span-full">
+              <GlassCard className="p-12 text-center">
+                <Camera className="h-12 w-12 mx-auto mb-4 text-foreground/50" />
+                <p className="text-foreground/70">No detections yet. Activate a camera to start detecting wildlife!</p>
+              </GlassCard>
+            </div>
+          ) : (
+            filteredDetections.map((detection, index) => (
+              <motion.div
+                key={detection.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <GlassCard hover className="overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xl font-bold">{detection.species}</h3>
+                      <Badge className="bg-primary/90 text-primary-foreground border-0">
+                        {Math.round(detection.confidence * 100)}%
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm text-foreground/70">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{detection.location}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        <span>{new Date(detection.detected_at).toLocaleString()}</span>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>{detection.lat.toFixed(4)}, {detection.lng.toFixed(4)}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{detection.timestamp}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <Button variant="outline" className="w-full btn-glass text-sm">
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            </GlassCard>
-          </motion.div>
-        ))}
+                </GlassCard>
+              </motion.div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Load More */}
